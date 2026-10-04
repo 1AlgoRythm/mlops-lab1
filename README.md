@@ -1,3 +1,267 @@
+# Lab 1 – CI with GitHub Actions
+
+[![Testing with Pytest](https://github.com/1AlgoRythm/mlops-lab1/actions/workflows/github_lab1_pytest_action.yml/badge.svg)](https://github.com/1AlgoRythm/mlops-lab1/actions/workflows/github_lab1_pytest_action.yml)
+[![Python Unittests](https://github.com/1AlgoRythm/mlops-lab1/actions/workflows/github_lab2_unittest_action.yml/badge.svg)](https://github.com/1AlgoRythm/mlops-lab1/actions/workflows/github_lab2_unittest_action.yml)
+
+A small Python calculator module with a continuous integration (CI) pipeline. On every
+push, GitHub Actions runs the test suite on several Python versions and reports the result.
+
+Based on `Github_Labs/Lab1` from https://github.com/raminmohammadi/MLOps
+(MLOps, DADS 7305, Northeastern University).
+
+## Contents
+
+- [Overview](#overview)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Project Structure](#project-structure)
+- [API Reference](#api-reference)
+- [Continuous Integration](#continuous-integration)
+- [Testing](#testing)
+- [Changes From the Upstream Lab](#changes-from-the-upstream-lab)
+- [Known Limitations](#known-limitations)
+- [Lessons Learned](#lessons-learned)
+- [Attribution and AI Use](#attribution-and-ai-use)
+
+## Overview
+
+The project has three parts:
+
+1. **`src/calculator.py`**: four small functions that add, subtract and multiply numbers.
+2. **`test/`**: the same behavior tested twice, once with `pytest` and once with `unittest`.
+3. **`.github/workflows/`**: two GitHub Actions workflows that run those tests automatically.
+
+## Requirements
+
+- Python 3.10 or 3.12 (the versions tested in CI)
+- `pytest` (listed in `requirements.txt`; the version is not pinned)
+- `unittest` is part of the Python standard library and needs no installation
+
+## Installation
+
+```bash
+git clone https://github.com/1AlgoRythm/mlops-lab1.git
+cd mlops-lab1
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+## Usage
+
+Run the tests from the repository root:
+
+```bash
+pytest                                        # every test (16, see the note below)
+pytest test/test_pytest.py -v                 # the 8 pytest tests
+python3 -m unittest test.test_unittest -v     # the 8 unittest tests
+```
+
+Plain `pytest` also collects the `unittest` file, so it reports `16 passed`: 8 from each file.
+
+## Project Structure
+
+```text
+mlops-lab1/
+├── .github/workflows/
+│   ├── github_lab1_pytest_action.yml     # "Testing with Pytest"
+│   └── github_lab2_unittest_action.yml   # "Python Unittests"
+├── data/__init__.py                      # empty package kept from the original lab
+├── src/
+│   ├── __init__.py
+│   └── calculator.py                     # the code under test
+├── test/
+│   ├── __init__.py
+│   ├── test_pytest.py                    # pytest tests
+│   └── test_unittest.py                  # unittest tests
+├── requirements.txt
+└── README.md
+```
+
+## API Reference
+
+All functions live in `src/calculator.py`. Every argument must be an `int` or a `float`;
+anything else raises `ValueError`.
+
+### `fun1(x, y)`
+
+Return the sum of `x` and `y`.
+
+```python
+>>> from src import calculator
+>>> calculator.fun1(2, 3)
+5
+>>> calculator.fun1(0.1, 0.2)
+0.30000000000000004
+>>> calculator.fun1("2", 3)
+Traceback (most recent call last):
+    ...
+ValueError: Both inputs must be numbers.
+```
+
+### `fun2(x, y)`
+
+Return `x` minus `y`. Raises `ValueError` if either argument is not a number.
+
+```python
+>>> calculator.fun2(2, 3)
+-1
+```
+
+### `fun3(x, y)`
+
+Return the product of `x` and `y`. Raises `ValueError` if either argument is not a number.
+
+```python
+>>> calculator.fun3(2, 3.5)
+7.0
+```
+
+### `fun4(x, y, z)`
+
+Return the sum of `x`, `y` and `z`. Raises `ValueError` if any argument is not a number.
+
+```python
+>>> calculator.fun4(2, 3, 5)
+10
+>>> calculator.fun4("a", 2, 3)
+Traceback (most recent call last):
+    ...
+ValueError: All the inputs must be numbers
+```
+
+> **Note:** `bool` is a subclass of `int` in Python, so `True` and `False` are accepted
+> as numbers (`calculator.fun1(True, 1)` returns `2`).
+
+## Continuous Integration
+
+### How it works
+
+1. A push to the repository triggers a workflow.
+2. GitHub starts a fresh Ubuntu machine for each Python version in the matrix.
+3. The machine checks out the code and installs the requested Python version.
+4. It installs the packages in `requirements.txt`.
+5. It runs the tests.
+6. GitHub shows a green check if every step passed and a red cross if any step failed.
+
+The tests run on GitHub's machines, not on the developer's computer. If they pass there,
+the code works in a clean environment, not only on one laptop.
+
+### Workflows
+
+| Workflow | File | Runs on | Command | Artifacts |
+|---|---|---|---|---|
+| Testing with Pytest | `github_lab1_pytest_action.yml` | push to `main` or `releases/**`; also `label` created and `issues` opened or labeled (inherited from the original lab) | `pytest --junitxml=pytest-report.xml` | `test-results-3.10`, `test-results-3.12` |
+| Python Unittests | `github_lab2_unittest_action.yml` | push to `main` | `python -m unittest test.test_unittest` | none |
+
+### Python version matrix
+
+Both workflows use a matrix. The job is written once, and GitHub runs it once per version
+listed under `strategy.matrix.python-version`: currently **3.10** and **3.12**. Each job
+reads its version from `${{ matrix.python-version }}`.
+
+- Versions are written in quotes (`"3.10"`). YAML reads an unquoted `3.10` as the number
+  3.1, which is a different version.
+- `fail-fast: false` is set, so one failing version does not cancel the others.
+
+### Artifacts
+
+The pytest workflow uploads its XML report (`pytest-report.xml`) for each version, named
+`test-results-<version>`. To download one, open a run on the **Actions** tab and scroll
+to **Artifacts**.
+
+## Testing
+
+| File | Tests | Original lab |
+|---|---|---|
+| `test/test_pytest.py` | 8 | 4 |
+| `test/test_unittest.py` | 8 | 4 |
+
+The tests cover three kinds of cases:
+
+- **Normal cases:** positive, negative and zero values, and floats.
+- **Error cases:** non-numbers (text, `None`, a list) raise `ValueError` in `fun1` to
+  `fun4`, with the bad value in different argument positions.
+- **Float comparison:** `0.1 + 0.2` is `0.30000000000000004`, so the tests compare it with
+  `pytest.approx` and `assertAlmostEqual`, not `==`.
+
+To check that the tests can fail, they were run against deliberately broken copies of the
+calculator. Removing the input check from `fun4` made the new `fun4` tests fail in both
+frameworks. Removing it from `fun1` made the `fun1`, `fun2` and `fun3` error tests fail.
+
+## Changes From the Upstream Lab
+
+Each change is its own commit.
+
+### Fixed
+
+- **Pytest workflow rejected by GitHub.** It used both `branches` and `branches-ignore`
+  under `push:` and had a typo (`run-nam`). The first run reported a "workflow file issue"
+  and never started. Removed `branches-ignore` and fixed the typo
+  ([`9b331b5`](https://github.com/1AlgoRythm/mlops-lab1/commit/9b331b5)).
+- **Workflow files in the wrong folder.** GitHub only runs workflows from
+  `.github/workflows/`, so the two files were moved there
+  ([`4f41255`](https://github.com/1AlgoRythm/mlops-lab1/commit/4f41255)).
+- **`actions/upload-artifact` v2 is blocked.** GitHub failed the job before any test ran,
+  with the message that v2 is deprecated. Updated to v4
+  ([`312017d`](https://github.com/1AlgoRythm/mlops-lab1/commit/312017d)).
+- **`fun4` accepted non-numbers**, unlike `fun1` to `fun3`: `fun4("a", "b", "c")` returned
+  `"abc"`. It now raises `ValueError`
+  ([`a548dc3`](https://github.com/1AlgoRythm/mlops-lab1/commit/a548dc3)).
+
+### Added
+
+- **Python version matrix** on both workflows
+  ([`adf0743`](https://github.com/1AlgoRythm/mlops-lab1/commit/adf0743),
+  [`4640d00`](https://github.com/1AlgoRythm/mlops-lab1/commit/4640d00)). The original lab
+  tested one hard-coded version.
+- **One test report per Python version**, named `test-results-<version>`
+  ([`10187b1`](https://github.com/1AlgoRythm/mlops-lab1/commit/10187b1)). With one shared
+  name the reports could not be told apart.
+- **`fail-fast: false`**
+  ([`336545c`](https://github.com/1AlgoRythm/mlops-lab1/commit/336545c)).
+- **Error-case, float and normal-case tests** in both test files
+  ([`a548dc3`](https://github.com/1AlgoRythm/mlops-lab1/commit/a548dc3)).
+
+### Changed
+
+- **The matrix was narrowed from 3.8, 3.10 and 3.12 to 3.10 and 3.12.** GitHub announced
+  that the `ubuntu-latest` label moves to Ubuntu 26 on 2026-10-19, and it could not be
+  confirmed that Python 3.8 would still install there.
+
+## Known Limitations
+
+- **`fail-fast: false` has not been demonstrated.** While every job passes it makes no
+  visible difference, and no version has been forced to fail.
+- **Duplicate artifact names were accepted.** The `upload-artifact@v4` documentation says
+  names must be unique, but when three jobs uploaded `test-results` all three succeeded.
+  The reason is unknown. This is why each report now has its own name.
+- **Older action versions.** The workflows use `actions/checkout@v2` and
+  `actions/setup-python@v2`. They still work, but GitHub prints a warning that Node.js 20 is
+  deprecated.
+- **Inherited triggers.** The pytest workflow also runs on `label` and `issues` events.
+  These come from the original lab and are not needed for this project.
+- **`ubuntu-latest` is changing.** See the last item under *Changed* above.
+
+## Lessons Learned
+
+- CI is a safety check that runs on every change, so mistakes show up right away.
+- A matrix tests many environments from one job definition. Quote the versions.
+- Documentation and behavior can disagree. Read what the run actually did.
+- Tests should check failures as well as normal results, and compare floats with a
+  tolerance.
+
+## Attribution and AI Use
+
+This repository is based on the lab in the course repository linked at the top. Claude (an
+AI assistant) was used to explain concepts, help read failed workflow runs, write and draft
+ this README. The code was run, and the results checked on GitHub.
+
+---
+
+# Original lab README (kept for reference)
+
 # LAB1 - MLOps (IE-7374) 
 
 This lab focuses on 5 modules, which includes creating a virtual environment, creating a GitHub repository, creating Python files, creating test files using pytest and unittest, and implementing GitHub Actions.
