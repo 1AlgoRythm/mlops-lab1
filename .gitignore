@@ -1,0 +1,7 @@
+.venv/
+venv/
+lab_01/
+__pycache__/
+*.pyc
+.pytest_cache/
+pytest-report.xml
